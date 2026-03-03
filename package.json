@@ -1,37 +1,44 @@
 {
   "name": "mail-viewer",
   "version": "1.0.0",
-  "description": "A read-only desktop email client",
+  "description": "A read-only desktop email client for monitoring multiple IMAP accounts",
+  "author": "Leonardo Andrade",
+  "license": "MIT",
+  "keywords": ["email", "imap", "electron", "mail", "desktop"],
   "main": "./out/main/index.js",
+  "bin": {
+    "mail-viewer": "./bin/mail-viewer.js"
+  },
+  "files": [
+    "out/",
+    "bin/"
+  ],
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "electron-vite build && electron-builder",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
-    "@tanstack/react-query": "^5.56.2",
-    "@tanstack/react-virtual": "^3.10.7",
+    "electron": "^32.0.1",
     "electron-updater": "^6.3.9",
     "imapflow": "^1.0.169",
     "mailparser": "^3.7.1",
     "pg": "^8.13.0",
-    "@hookform/resolvers": "^3.9.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.53.0",
-    "zustand": "^5.0.0",
-    "xlsx": "^0.18.5",
-    "zod": "^3.23.8"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
     "@electron-toolkit/eslint-config-ts": "^2.0.0",
     "@electron-toolkit/tsconfig": "^1.0.1",
+    "@hookform/resolvers": "^3.9.0",
     "@tailwindcss/typography": "^0.5.15",
+    "@tanstack/react-query": "^5.56.2",
+    "@tanstack/react-virtual": "^3.10.7",
     "@types/mailparser": "^3.4.4",
     "@types/node": "^22.5.5",
     "@types/pg": "^8.11.10",
@@ -39,12 +46,16 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
-    "electron": "^32.0.1",
     "electron-builder": "^25.0.5",
     "electron-vite": "^2.3.0",
     "postcss": "^8.4.47",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.0",
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.4",
-    "vite": "^5.4.6"
+    "vite": "^5.4.6",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.0"
   }
 }
