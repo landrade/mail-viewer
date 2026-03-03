@@ -1,31 +1,23 @@
 import { ImapFlow, ImapFlowOptions } from 'imapflow'
-import { getPool } from '../db/client'
+import { getDb } from '../db/client'
 import { decryptPassword } from '../security/storage'
 
 const connections = new Map<number, ImapFlow>()
 
-async function getAccountCredentials(accountId: number): Promise<ImapFlowOptions> {
-  const pool = getPool()
-  const result = await pool.query(
-    `SELECT imap_host, imap_port, imap_secure, username, password_enc
-     FROM accounts WHERE id = $1`,
-    [accountId]
-  )
+function getAccountCredentials(accountId: number): ImapFlowOptions {
+  const row = getDb()
+    .prepare('SELECT imap_host, imap_port, imap_secure, username, password_enc FROM accounts WHERE id = ?')
+    .get(accountId) as { imap_host: string; imap_port: number; imap_secure: number; username: string; password_enc: Buffer } | undefined
 
-  if (result.rows.length === 0) {
-    throw new Error(`Account ${accountId} not found`)
-  }
-
-  const row = result.rows[0]
-  const password = decryptPassword(Buffer.from(row.password_enc))
+  if (!row) throw new Error(`Account ${accountId} not found`)
 
   return {
     host: row.imap_host,
     port: row.imap_port,
-    secure: row.imap_secure,
+    secure: Boolean(row.imap_secure),
     auth: {
       user: row.username,
-      pass: password
+      pass: decryptPassword(row.password_enc)
     },
     logger: false
   }
@@ -48,7 +40,7 @@ export async function getConnection(accountId: number): Promise<ImapFlow> {
     connections.delete(accountId)
   }
 
-  const options = await getAccountCredentials(accountId)
+  const options = getAccountCredentials(accountId)
   client = new ImapFlow(options)
 
   client.on('close', () => {

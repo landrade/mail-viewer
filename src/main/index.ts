@@ -2,7 +2,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { runMigrations } from './db/migrations'
-import { closePool } from './db/client'
+import { closeDb } from './db/client'
 import { closeAllConnections } from './imap/connectionManager'
 import { registerAccountHandlers } from './ipc/accountHandlers'
 import { registerFolderHandlers } from './ipc/folderHandlers'
@@ -76,7 +76,7 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', async () => {
   await closeAllConnections()
-  await closePool()
+  closeDb()
   if (process.platform !== 'darwin') {
     app.quit()
   }

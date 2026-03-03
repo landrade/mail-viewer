@@ -51,7 +51,7 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 
-npmRebuild: false
+npmRebuild: true
 
 publish:
   provider: generic

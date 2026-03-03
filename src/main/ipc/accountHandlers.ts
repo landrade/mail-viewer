@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { getPool } from '../db/client'
+import { getDb } from '../db/client'
 import { encryptPassword, decryptPassword } from '../security/storage'
 import { testConnection, getConnection, closeConnection, closeAllConnections } from '../imap/connectionManager'
 import type { Account, AccountInput, TestConnectionResult, DeleteResult } from '../../shared/types'
@@ -28,93 +28,74 @@ function rowToAccount(row: Record<string, unknown>): Account {
     emailAddress: row.email_address as string,
     imapHost: row.imap_host as string,
     imapPort: row.imap_port as number,
-    imapSecure: row.imap_secure as boolean,
+    imapSecure: Boolean(row.imap_secure),
     username: row.username as string,
     unseenCount: (row.unseen_count as number) ?? 0,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString()
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string
   }
 }
 
 export function registerAccountHandlers(): void {
-  ipcMain.handle('accounts:list', async (): Promise<Account[]> => {
-    const pool = getPool()
-    const result = await pool.query(
+  ipcMain.handle('accounts:list', (): Account[] => {
+    const db = getDb()
+    const rows = db.prepare(
       `SELECT id, display_name, email_address, imap_host, imap_port, imap_secure,
               username, unseen_count, created_at, updated_at
        FROM accounts ORDER BY unseen_count DESC, display_name ASC`
-    )
-    return result.rows.map(rowToAccount)
+    ).all() as Record<string, unknown>[]
+    return rows.map(rowToAccount)
   })
 
-  ipcMain.handle('accounts:create', async (_event, input: AccountInput): Promise<Account> => {
-    const pool = getPool()
+  ipcMain.handle('accounts:create', (_event, input: AccountInput): Account => {
+    const db = getDb()
     const passwordEnc = encryptPassword(input.password)
-
-    const result = await pool.query(
+    const row = db.prepare(
       `INSERT INTO accounts (display_name, email_address, imap_host, imap_port, imap_secure, username, password_enc)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, display_name, email_address, imap_host, imap_port, imap_secure, username, created_at, updated_at`,
-      [
-        input.displayName,
-        input.emailAddress,
-        input.imapHost,
-        input.imapPort,
-        input.imapSecure,
-        input.username,
-        passwordEnc
-      ]
-    )
-    return rowToAccount(result.rows[0])
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       RETURNING id, display_name, email_address, imap_host, imap_port, imap_secure,
+                 username, unseen_count, created_at, updated_at`
+    ).get(
+      input.displayName, input.emailAddress, input.imapHost, input.imapPort,
+      input.imapSecure ? 1 : 0, input.username, passwordEnc
+    ) as Record<string, unknown>
+    return rowToAccount(row)
   })
 
   ipcMain.handle(
     'accounts:update',
     async (_event, id: number, input: AccountInput): Promise<Account> => {
-      const pool = getPool()
+      const db = getDb()
       const passwordEnc = encryptPassword(input.password)
-
-      const result = await pool.query(
+      const row = db.prepare(
         `UPDATE accounts
-         SET display_name = $1, email_address = $2, imap_host = $3, imap_port = $4,
-             imap_secure = $5, username = $6, password_enc = $7, updated_at = NOW()
-         WHERE id = $8
-         RETURNING id, display_name, email_address, imap_host, imap_port, imap_secure, username, created_at, updated_at`,
-        [
-          input.displayName,
-          input.emailAddress,
-          input.imapHost,
-          input.imapPort,
-          input.imapSecure,
-          input.username,
-          passwordEnc,
-          id
-        ]
-      )
+         SET display_name = ?, email_address = ?, imap_host = ?, imap_port = ?,
+             imap_secure = ?, username = ?, password_enc = ?, updated_at = datetime('now')
+         WHERE id = ?
+         RETURNING id, display_name, email_address, imap_host, imap_port, imap_secure,
+                   username, unseen_count, created_at, updated_at`
+      ).get(
+        input.displayName, input.emailAddress, input.imapHost, input.imapPort,
+        input.imapSecure ? 1 : 0, input.username, passwordEnc, id
+      ) as Record<string, unknown> | undefined
 
-      if (result.rows.length === 0) {
-        throw new Error(`Account ${id} not found`)
-      }
+      if (!row) throw new Error(`Account ${id} not found`)
 
-      // Close existing IMAP connection so it reconnects with new credentials
       await closeConnection(id)
-
-      return rowToAccount(result.rows[0])
+      return rowToAccount(row)
     }
   )
 
   ipcMain.handle('accounts:delete', async (_event, id: number): Promise<DeleteResult> => {
-    const pool = getPool()
     await closeConnection(id)
-    await pool.query('DELETE FROM accounts WHERE id = $1', [id])
+    getDb().prepare('DELETE FROM accounts WHERE id = ?').run(id)
     return { success: true }
   })
 
   ipcMain.handle('accounts:deleteAll', async (): Promise<{ deleted: number }> => {
-    const pool = getPool()
     await closeAllConnections()
-    const result = await pool.query('DELETE FROM accounts')
-    return { deleted: result.rowCount ?? 0 }
+    const result = getDb().prepare('DELETE FROM accounts').run()
+    return { deleted: result.changes }
   })
 
   ipcMain.handle(
@@ -125,10 +106,7 @@ export function registerAccountHandlers(): void {
           host: input.imapHost,
           port: input.imapPort,
           secure: input.imapSecure,
-          auth: {
-            user: input.username,
-            pass: input.password
-          }
+          auth: { user: input.username, pass: input.password }
         })
         return { ok: true }
       } catch (err) {
@@ -138,9 +116,9 @@ export function registerAccountHandlers(): void {
   )
 
   ipcMain.handle('accounts:fetchUnseenCounts', async (): Promise<{ updated: number }> => {
-    const pool = getPool()
-    const { rows } = await pool.query('SELECT id FROM accounts')
-    const ids = rows.map((r) => r.id as number)
+    const db = getDb()
+    const ids = (db.prepare('SELECT id FROM accounts').all() as { id: number }[]).map((r) => r.id)
+    const updateStmt = db.prepare('UPDATE accounts SET unseen_count = ? WHERE id = ?')
 
     let updated = 0
 
@@ -148,8 +126,7 @@ export function registerAccountHandlers(): void {
       try {
         const client = await getConnection(id)
         const status = await client.status('INBOX', { unseen: true })
-        const unseen = status.unseen ?? 0
-        await pool.query('UPDATE accounts SET unseen_count = $1 WHERE id = $2', [unseen, id])
+        updateStmt.run(status.unseen ?? 0, id)
         updated++
       } catch (err) {
         console.error(`[unseen] account ${id}:`, (err as Error).message)
@@ -160,9 +137,10 @@ export function registerAccountHandlers(): void {
   })
 }
 
-export async function getDecryptedPassword(accountId: number): Promise<string> {
-  const pool = getPool()
-  const result = await pool.query('SELECT password_enc FROM accounts WHERE id = $1', [accountId])
-  if (result.rows.length === 0) throw new Error(`Account ${accountId} not found`)
-  return decryptPassword(Buffer.from(result.rows[0].password_enc))
+export function getDecryptedPassword(accountId: number): string {
+  const row = getDb()
+    .prepare('SELECT password_enc FROM accounts WHERE id = ?')
+    .get(accountId) as { password_enc: Buffer } | undefined
+  if (!row) throw new Error(`Account ${accountId} not found`)
+  return decryptPassword(row.password_enc)
 }
