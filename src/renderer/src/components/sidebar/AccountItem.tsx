@@ -1,7 +1,7 @@
-import { useRef, useEffect } from 'react'
-import { useState } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import type { Account } from '../../types'
 import { useAppStore } from '../../store/appStore'
+import { useDeleteAccount } from '../../hooks/useAccounts'
 import { useFolders } from '../../hooks/useFolders'
 import { FolderItem } from './FolderItem'
 
@@ -15,6 +15,7 @@ export function AccountItem({ account, expanded, onToggle }: Props) {
   const { selectedAccount, setSelectedAccount, openEditAccountModal } = useAppStore()
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const deleteAccount = useDeleteAccount()
 
   const isSelected = selectedAccount?.id === account.id
   const { data: folders, isLoading } = useFolders(expanded ? account.id : null)
@@ -89,6 +90,18 @@ export function AccountItem({ account, expanded, onToggle }: Props) {
             }}
           >
             Edit Account
+          </button>
+          <div className="border-t border-zinc-700 my-1" />
+          <button
+            className="w-full text-left px-4 py-2 text-red-400 hover:bg-zinc-700"
+            onClick={async () => {
+              setContextMenu(null)
+              if (!confirm(`Delete "${account.displayName}"?`)) return
+              if (selectedAccount?.id === account.id) setSelectedAccount(null)
+              await deleteAccount.mutateAsync(account.id)
+            }}
+          >
+            Delete Account
           </button>
         </div>
       )}

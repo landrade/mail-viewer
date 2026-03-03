@@ -41,6 +41,16 @@ export function useDeleteAccount() {
   })
 }
 
+export function useDeleteAllAccounts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => ipc.accounts.deleteAll(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    }
+  })
+}
+
 export function useTestConnection() {
   return useMutation({
     mutationFn: (input: AccountInput) => ipc.accounts.testConnection(input)

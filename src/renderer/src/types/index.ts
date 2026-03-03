@@ -8,6 +8,7 @@ export type {
   Attachment,
   TestConnectionResult,
   DeleteResult,
+  DeleteAllResult,
   XlsxFileData,
   XlsxImportConfig,
   XlsxImportResult

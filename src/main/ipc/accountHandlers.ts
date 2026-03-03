@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { getPool } from '../db/client'
 import { encryptPassword, decryptPassword } from '../security/storage'
-import { testConnection, getConnection, closeConnection } from '../imap/connectionManager'
+import { testConnection, getConnection, closeConnection, closeAllConnections } from '../imap/connectionManager'
 import type { Account, AccountInput, TestConnectionResult, DeleteResult } from '../../shared/types'
 
 const UNSEEN_CONCURRENCY = 20
@@ -108,6 +108,13 @@ export function registerAccountHandlers(): void {
     await closeConnection(id)
     await pool.query('DELETE FROM accounts WHERE id = $1', [id])
     return { success: true }
+  })
+
+  ipcMain.handle('accounts:deleteAll', async (): Promise<{ deleted: number }> => {
+    const pool = getPool()
+    await closeAllConnections()
+    const result = await pool.query('DELETE FROM accounts')
+    return { deleted: result.rowCount ?? 0 }
   })
 
   ipcMain.handle(

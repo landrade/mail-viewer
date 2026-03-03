@@ -75,6 +75,10 @@ export interface DeleteResult {
   success: boolean
 }
 
+export interface DeleteAllResult {
+  deleted: number
+}
+
 export interface XlsxFileData {
   rows: string[][]
 }

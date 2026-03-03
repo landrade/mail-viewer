@@ -1,14 +1,21 @@
 import { useRef, useState, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useAccounts, useUnseenRefresh } from '../../hooks/useAccounts'
+import { useAccounts, useUnseenRefresh, useDeleteAllAccounts } from '../../hooks/useAccounts'
 import { useAppStore } from '../../store/appStore'
 import { AccountItem } from './AccountItem'
 
 export function Sidebar() {
   const { data: accounts, isLoading, error } = useAccounts()
-  const { openCreateAccountModal, openImportModal } = useAppStore()
+  const { openCreateAccountModal, openImportModal, setSelectedAccount } = useAppStore()
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
+  const deleteAll = useDeleteAllAccounts()
   useUnseenRefresh()
+
+  const handleDeleteAll = async () => {
+    if (!confirm('Delete ALL accounts? This cannot be undone.')) return
+    setSelectedAccount(null)
+    await deleteAll.mutateAsync()
+  }
   const parentRef = useRef<HTMLDivElement>(null)
 
   const accountList = accounts ?? []
@@ -49,6 +56,16 @@ export function Sidebar() {
           >
             +
           </button>
+          {accountList.length > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              disabled={deleteAll.isPending}
+              title="Delete all accounts"
+              className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-red-400 hover:bg-zinc-700 transition-colors text-sm leading-none disabled:opacity-40"
+            >
+              🗑
+            </button>
+          )}
         </div>
       </div>
 

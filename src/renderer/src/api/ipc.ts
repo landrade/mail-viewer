@@ -6,6 +6,7 @@ import type {
   ParsedMessage,
   TestConnectionResult,
   DeleteResult,
+  DeleteAllResult,
   XlsxFileData,
   XlsxImportConfig,
   XlsxImportResult
@@ -22,6 +23,7 @@ declare global {
         delete(id: number): Promise<DeleteResult>
         testConnection(input: AccountInput): Promise<TestConnectionResult>
         fetchUnseenCounts(): Promise<{ updated: number }>
+        deleteAll(): Promise<DeleteAllResult>
       }
       folders: {
         list(accountId: number): Promise<MailboxEntry[]>
@@ -45,7 +47,8 @@ export const ipc = {
     update: (id: number, input: AccountInput) => window.api.accounts.update(id, input),
     delete: (id: number) => window.api.accounts.delete(id),
     testConnection: (input: AccountInput) => window.api.accounts.testConnection(input),
-    fetchUnseenCounts: () => window.api.accounts.fetchUnseenCounts()
+    fetchUnseenCounts: () => window.api.accounts.fetchUnseenCounts(),
+    deleteAll: () => window.api.accounts.deleteAll()
   },
   folders: {
     list: (accountId: number) => window.api.folders.list(accountId)

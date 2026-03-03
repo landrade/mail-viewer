@@ -8,6 +8,7 @@ import type {
   ParsedMessage,
   TestConnectionResult,
   DeleteResult,
+  DeleteAllResult,
   XlsxFileData,
   XlsxImportConfig,
   XlsxImportResult
@@ -30,7 +31,9 @@ const api = {
       ipcRenderer.invoke('accounts:testConnection', input),
 
     fetchUnseenCounts: (): Promise<{ updated: number }> =>
-      ipcRenderer.invoke('accounts:fetchUnseenCounts')
+      ipcRenderer.invoke('accounts:fetchUnseenCounts'),
+
+    deleteAll: (): Promise<DeleteAllResult> => ipcRenderer.invoke('accounts:deleteAll')
   },
 
   folders: {
